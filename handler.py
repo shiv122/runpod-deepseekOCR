@@ -36,6 +36,7 @@ MODEL_NAME = os.environ.get("MODEL_NAME", "deepseek-ai/DeepSeek-OCR")
 # endpoint env vars and build the image with --build-arg BAKE_MODEL=0.
 HF_CACHE = os.environ.get("HF_HOME", "/opt/hf-cache")
 
+
 SIZE_PRESETS = {
     "tiny":   {"base_size": 512,  "image_size": 512,  "crop_mode": False},
     "small":  {"base_size": 640,  "image_size": 640,  "crop_mode": False},
