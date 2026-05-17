@@ -1,55 +1,33 @@
-# Matches versions DeepSeek-OCR was tested on:
-#   torch 2.6.0 + CUDA 11.8 + flash-attn 2.7.3 prebuilt wheel (cxx11abi=FALSE)
-FROM nvidia/cuda:11.8.0-cudnn8-devel-ubuntu22.04
-
-# BAKE_MODEL=1 (default) downloads the model weights at build time so cold
-# starts are fast and you don't need a network volume.
-ARG BAKE_MODEL=1
+# Slim build for RunPod's GitHub flow:
+#   - pytorch/pytorch base has torch 2.6 + torchvision + python 3.11 preinstalled
+#   - flash-attn pinned to a direct wheel URL, ABI auto-detected
+#   - Model is NOT baked; first request downloads it onto the attached network volume
+# Final image: ~2GB. Build push completes in 1-2 min and avoids the I/O error
+# that RunPod's registry hits on multi-GB layers.
+FROM pytorch/pytorch:2.6.0-cuda11.8-cudnn9-devel
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     HF_HUB_ENABLE_HF_TRANSFER=1 \
-    HF_HOME=/opt/hf-cache \
-    TRANSFORMERS_CACHE=/opt/hf-cache \
-    TORCH_CUDA_ARCH_LIST="7.0;7.5;8.0;8.6;8.9;9.0"
+    HF_HOME=/runpod-volume/huggingface \
+    TRANSFORMERS_CACHE=/runpod-volume/huggingface
 
-# Python 3.11 from deadsnakes (3.11 wheels exist for every dep here)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      software-properties-common ca-certificates curl git \
       libgl1 libglib2.0-0 \
- && add-apt-repository -y ppa:deadsnakes/ppa \
- && apt-get update && apt-get install -y --no-install-recommends \
-      python3.11 python3.11-dev python3.11-distutils \
- && curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11 \
- && ln -sf /usr/bin/python3.11 /usr/local/bin/python \
- && ln -sf /usr/bin/python3.11 /usr/local/bin/python3 \
  && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --upgrade pip setuptools wheel packaging ninja
-
-# Torch must land before flash-attn so the wheel resolver sees a matching torch.
-# This pulls cxx11abi=FALSE torch from pytorch.org, which matches the prebuilt
-# flash-attn wheel.
-RUN pip install torch==2.6.0 --index-url https://download.pytorch.org/whl/cu118
-
 COPY requirements.txt /tmp/requirements.txt
-RUN pip install -r /tmp/requirements.txt hf_transfer
+RUN pip install --upgrade pip \
+ && pip install -r /tmp/requirements.txt hf_transfer
 
-# Prebuilt wheel — does NOT compile from source
-RUN pip install flash-attn==2.7.3 --no-build-isolation
-
-# Bake model weights into image (~6.5GB). Skip with --build-arg BAKE_MODEL=0.
-COPY builder/download_model.py /tmp/download_model.py
-RUN if [ "$BAKE_MODEL" = "1" ]; then \
-      python /tmp/download_model.py ; \
-    else \
-      echo "Skipping model bake-in; handler will fetch on first call." ; \
-    fi
-
-# torchvision is needed by DeepSeek-OCR's custom modeling code. Installed AFTER
-# the bake so the 6.5GB weights layer stays cached on rebuild.
-RUN pip install torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu118
+# Install flash-attn from a direct wheel URL matching this image's torch ABI.
+# (Pip's resolver doesn't auto-pick the right cxx11abi variant from PyPI, so we
+# detect the ABI and fetch the matching wheel explicitly.)
+RUN ABI=$(python -c "import torch; print('TRUE' if torch._C._GLIBCXX_USE_CXX11_ABI else 'FALSE')") \
+ && echo "Detected cxx11abi=$ABI" \
+ && pip install \
+      "https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.3/flash_attn-2.7.3+cu11torch2.6cxx11abi${ABI}-cp311-cp311-linux_x86_64.whl"
 
 WORKDIR /workspace
 COPY handler.py /workspace/handler.py
