@@ -1,0 +1,8 @@
+{
+  "input": {
+    "image": "https://huggingface.co/deepseek-ai/DeepSeek-OCR/resolve/main/assets/show2.jpg",
+    "task": "markdown",
+    "size": "gundam",
+    "return_image": false
+  }
+}

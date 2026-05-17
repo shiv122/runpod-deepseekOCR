@@ -1,0 +1,9 @@
+runpod>=1.7.0
+requests>=2.31.0
+Pillow>=10.0.0
+transformers==4.46.3
+tokenizers==0.20.3
+einops
+addict
+easydict
+# flash-attn and torch are installed in the Dockerfile (special build flags / matching CUDA)
