@@ -10,8 +10,8 @@ ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     HF_HUB_ENABLE_HF_TRANSFER=1 \
-    HF_HOME=/runpod-volume/huggingface \
-    TRANSFORMERS_CACHE=/runpod-volume/huggingface
+    HF_HOME=/opt/hf-cache \
+    TRANSFORMERS_CACHE=/opt/hf-cache
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       libgl1 libglib2.0-0 \
