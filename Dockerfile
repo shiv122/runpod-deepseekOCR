@@ -47,6 +47,10 @@ RUN if [ "$BAKE_MODEL" = "1" ]; then \
       echo "Skipping model bake-in; handler will fetch on first call." ; \
     fi
 
+# torchvision is needed by DeepSeek-OCR's custom modeling code. Installed AFTER
+# the bake so the 6.5GB weights layer stays cached on rebuild.
+RUN pip install torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu118
+
 WORKDIR /workspace
 COPY handler.py /workspace/handler.py
 COPY test_input.json /workspace/test_input.json
