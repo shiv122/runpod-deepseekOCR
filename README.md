@@ -108,3 +108,4 @@ docker run --rm --gpus all \
 ```
 
 The RunPod SDK auto-detects `test_input.json` when run outside the serverless queue.
+# runpod-deepseekOCR
